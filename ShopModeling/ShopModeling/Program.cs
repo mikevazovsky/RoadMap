@@ -10,7 +10,10 @@ namespace ShopModeling
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("To be continued...");
+            
+            
+            var shopModel = new ShopModel();
+            shopModel.RunShopping();
         }
     }
 }
