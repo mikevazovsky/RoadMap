@@ -10,8 +10,6 @@ namespace ShopModeling
     {
         static void Main(string[] args)
         {
-            
-            
             var shopModel = new ShopModel();
             shopModel.RunShopping();
         }

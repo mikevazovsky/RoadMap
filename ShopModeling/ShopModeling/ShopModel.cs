@@ -15,85 +15,82 @@ namespace ShopModeling
         private SemaphoreSlim cartSemaphore;
         private SemaphoreSlim cashRegisterSemaphore;
         private ConcurrentQueue<Task> cashQueue;
-        private const int parkingSize = 2;
+        
+        private const int ParkingSize = 100;
+        private const int BasketCount = 8;
+        private const int CartCount = 7;
+        private const int CashRegisterCount = 5;
 
         public void RunShopping()
         {
-            parkingSemaphore = new SemaphoreSlim(parkingSize, parkingSize);
-            basketSemaphore = new SemaphoreSlim(50, 50);
-            cartSemaphore = new SemaphoreSlim(100, 100);
-            cashRegisterSemaphore = new SemaphoreSlim(5, 5);
+            ////Prove of queue concept
+            //var s = new SemaphoreSlim(4, 4);
+            //var tsks = new List<Task>();
+            //for (int i = 0; i < 8; i++)
+            //{
+            //    tsks.Add(Task.Factory.StartNew(id =>
+            //        {
+            //            var j = (int)id;
+            //            Console.WriteLine("{0}: waiting", j);
+            //            s.Wait();
+            //            Console.WriteLine("{0}: took", j);
+            //            if (j < 4)
+            //            {
+            //                Thread.Sleep(TimeSpan.FromSeconds(j * 3 + 5));
+            //                s.Release();
+            //            }
+            //        }, i));
+
+            //    Thread.Sleep(TimeSpan.FromSeconds(1));
+            //}
+
+            //Task.WaitAll(tsks.ToArray());
+            //return;
+
+            parkingSemaphore = new SemaphoreSlim(ParkingSize, ParkingSize);
+            basketSemaphore = new SemaphoreSlim(BasketCount, BasketCount);
+            cartSemaphore = new SemaphoreSlim(CartCount, CartCount);
+            cashRegisterSemaphore = new SemaphoreSlim(CashRegisterCount, CashRegisterCount);
             cashQueue = new ConcurrentQueue<Task>();
 
-            var tasks = new List<Task>();
-            
+            var tasks = new List<Task<Statistic>>();
+
+            //int i = 0;
             //while (true)
-            
-            for (int i = 0; i < 5; i++)
+            //var cancelSource = new CancellationTokenSource();
+
+            //var stateTask = Task.Factory.StartNew(() => ShowCurrentState(), cancelSource.Token);
+
+            for (int i = 0; i < 100; i++)
             {
-                int wayToShop = new Random().Next(2, 5);
-                int shoppingTime = new Random().Next(5, 10);
-                int wayToParking = new Random().Next(2, 5);
-                int lineItemsCount = new Random().Next(1, 20);
+                var customer = new Customer(i, ref parkingSemaphore, ref basketSemaphore, ref cartSemaphore, ref  cashRegisterSemaphore);
 
-                tasks.Add(Task.Factory.StartNew(() => GetSomeGoods(i, wayToShop, shoppingTime, wayToParking, lineItemsCount)));
+                tasks.Add(Task<Statistic>.Factory.StartNew(() => customer.GetSomeGoods()));
 
-                Thread.Sleep(TimeSpan.FromSeconds(4));
+                Thread.Sleep(TimeSpan.FromSeconds(1));
+
+                //i++;
             }
 
             Task.WaitAll(tasks.ToArray());
+
+            var a = tasks.Select(t => t.Result.ShoppingDuration).Average();
+            var b = tasks.Select(t => t.Result.CashRegisterWaitingDuration).Average();
+
+            Console.WriteLine("\n\nAverage shopping duration: {0}", Math.Round(a, 2));
+            Console.WriteLine("Average waiting in cash register queue duration: {0}", Math.Round(b, 2));
+
+            //cancelSource.Cancel();
+            //Console.WriteLine("");
         }
 
-        private void GetSomeGoods(int id, int wayToShop, int shoppingTime, int wayToParking, int lineItemsCount)
+        private void ShowCurrentState()
         {
-            Console.WriteLine("{0}: Check Parking..", id);
-            if (parkingSemaphore.CurrentCount == 0)
+            while (true)
             {
-                Console.WriteLine("{0}: Parking is busy..", id);
-                return;
+                Console.Write("\rFree Parking Spaces: {0}; Free Baskets: {1}; Free Carts: {2}", parkingSemaphore.CurrentCount, basketSemaphore.CurrentCount, cartSemaphore.CurrentCount);
+                Thread.Sleep(TimeSpan.FromSeconds(1));
             }
-
-            parkingSemaphore.Wait(10);
-
-            Console.WriteLine("{0}: Parked.. Going to the shop", id);
-
-            Thread.Sleep(TimeSpan.FromSeconds(wayToShop));
-
-            if(lineItemsCount > 10)
-            {
-                Console.WriteLine("{0}: Cart waiting..", id);
-                cartSemaphore.Wait(10);
-
-                Console.WriteLine("{0}: Cart took..", id);
-            }
-            else
-            {
-                Console.WriteLine("{0}: Basket waiting..", id);
-                basketSemaphore.Wait(10);
-
-                Console.WriteLine("{0}: Basket took..", id);
-            }
-
-            Console.WriteLine("{0}: Shopping..", id);
-            Thread.Sleep(TimeSpan.FromSeconds(shoppingTime));
-
-            //Wait for payment in queue
-
-            if (lineItemsCount > 10)
-            {
-                cartSemaphore.Release();
-            }
-            else
-            {
-                basketSemaphore.Release();
-            }
-
-            Console.WriteLine("{0}: Going to parking..", id);
-            Thread.Sleep(TimeSpan.FromSeconds(wayToParking));
-            Console.WriteLine("{0}: Leave parking..", id);
-            parkingSemaphore.Release();
-
-            return;
         }
     }
 }
