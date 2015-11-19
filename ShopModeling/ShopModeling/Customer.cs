@@ -37,45 +37,45 @@ namespace ShopModeling
             var shopStopWatch = new Stopwatch();
             var cashRegisterStopWatch = new Stopwatch();
 
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Check Parking..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Check Parking..");
             if (_parkingSemaphore.CurrentCount == 0)
             {
-                Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Parking is busy..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+                DisplayProgressForAction("Parking is busy..");
                 return new Statistic(0, 0);
             }
 
             _parkingSemaphore.Wait();
 
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Parked.. Going to the shop..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Parked.. Going to the shop..");
 
             Thread.Sleep(TimeSpan.FromSeconds(wayToShop));
             shopStopWatch.Start();
             if (lineItemsCount > 10)
             {
-                Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Cart waiting..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+                DisplayProgressForAction("Cart waiting..");
                 _cartSemaphore.Wait();
 
-                Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Cart took..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+                DisplayProgressForAction("Cart took..");
             }
             else
             {
-                Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Basket waiting..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+                DisplayProgressForAction("Basket waiting..");
                 _basketSemaphore.Wait();
 
-                Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Basket took..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+                DisplayProgressForAction("Basket took..");
             }
 
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Shopping..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Shopping..");
             Thread.Sleep(TimeSpan.FromSeconds(shoppingTime));
 
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Cash register waiting..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Cash register waiting..");
             cashRegisterStopWatch.Start();
 
             _cashRegisterSemaphore.Wait();
             
             cashRegisterStopWatch.Stop();
-            
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Paying..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+
+            DisplayProgressForAction("Paying..");
             Thread.Sleep(TimeSpan.FromSeconds(paymentTime));
 
             _cashRegisterSemaphore.Release();
@@ -91,15 +91,20 @@ namespace ShopModeling
 
             shopStopWatch.Stop();
 
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Going to the parking..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Going to the parking..");
             Thread.Sleep(TimeSpan.FromSeconds(wayToParking));
-            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: Leave the parking..", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount);
+            DisplayProgressForAction("Leave the parking..");
             _parkingSemaphore.Release();
 
             var allSoppingTime = shopStopWatch.Elapsed.Seconds;
             var cashRegisterQueueTime = cashRegisterStopWatch.Elapsed.Seconds;
 
             return new Statistic(allSoppingTime, cashRegisterQueueTime);
+        }
+
+        private void DisplayProgressForAction(string action)
+        {
+            Console.WriteLine("FPS: {1}; FB: {2}; FC: {3}; Free CR: {4} {0, 10}: {5}", Id, _parkingSemaphore.CurrentCount, _basketSemaphore.CurrentCount, _cartSemaphore.CurrentCount, _cashRegisterSemaphore.CurrentCount, action);
         }
     }
 }
