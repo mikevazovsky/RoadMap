@@ -10,40 +10,56 @@ namespace ShopModeling
 {
     public class ShopModel
     {
-        private SemaphoreSlim parkingSemaphore;
-        private SemaphoreSlim basketSemaphore;
-        private SemaphoreSlim cartSemaphore;
-        private SemaphoreSlim cashRegisterSemaphore;
-        private ConcurrentQueue<Task> cashQueue;
-        
-        private const int ParkingSize = 10;
-        private const int BasketCount = 3;
-        private const int CartCount = 5;
-        private const int CashRegisterCount = 2;
+        private const int ParkingSize = 103;
+        private const int BasketCount = 26;
+        private const int CartCount = 40;
+        private const int CashRegisterCount = 10;
 
         public void RunShopping()
         {
-            parkingSemaphore = new SemaphoreSlim(ParkingSize, ParkingSize);
-            basketSemaphore = new SemaphoreSlim(BasketCount, BasketCount);
-            cartSemaphore = new SemaphoreSlim(CartCount, CartCount);
-            cashRegisterSemaphore = new SemaphoreSlim(CashRegisterCount, CashRegisterCount);
-            cashQueue = new ConcurrentQueue<Task>();
+            var parkingSemaphore = new SemaphoreSlim(ParkingSize, ParkingSize);
+            var basketSemaphore = new SemaphoreSlim(BasketCount, BasketCount);
+            var cartSemaphore = new SemaphoreSlim(CartCount, CartCount);
+            var cashRegisterSemaphore = new SemaphoreSlim(CashRegisterCount, CashRegisterCount);
 
-            var tasks = new List<Task<Statistic>>();
+            var manualResetEvents = new List<ManualResetEvent>();
 
-            for (int i = 0; i < 10; i++)
+            var dealerTasks = new List<Task>();
+
+            var cancellationSource = new CancellationTokenSource();
+
+            for (int i = 0; i < CashRegisterCount; i++)
             {
-                var customer = new Customer(i, ref parkingSemaphore, ref basketSemaphore, ref cartSemaphore, ref  cashRegisterSemaphore);
+                var mre = new ManualResetEvent(false);
 
-                tasks.Add(Task<Statistic>.Factory.StartNew(() => customer.GetSomeGoods()));
+                manualResetEvents.Add(mre);
+
+                var dealer = new Dealer(mre, i);
+
+                dealerTasks.Add(Task.Factory.StartNew(() => dealer.ServeCustomers(), cancellationSource.Token));
+            }
+
+            var resources = new SharedResources(parkingSemaphore, basketSemaphore, cartSemaphore, cashRegisterSemaphore);
+
+            var customerTasks = new List<Task<Statistic>>();
+
+            for (int i = 0; i < 100; i++)
+            {
+                var customer = new Customer(i, resources, manualResetEvents.ElementAt(i % CashRegisterCount));
+
+                customerTasks.Add(Task<Statistic>.Factory.StartNew(() => customer.GetSomeGoods()));
 
                 Thread.Sleep(TimeSpan.FromSeconds(1));
             }
 
-            Task.WaitAll(tasks.ToArray());
+            Task.WaitAll(customerTasks.ToArray());
 
-            var a = tasks.Select(t => t.Result.ShoppingDuration).Average();
-            var b = tasks.Select(t => t.Result.CashRegisterWaitingDuration).Average();
+            cancellationSource.Cancel();
+
+            var a = customerTasks.Select(t => t.Result.ShoppingDuration).Average();
+            var b = customerTasks.Select(t => t.Result.CashRegisterWaitingDuration).Average();
+            var c = (double)customerTasks.Select(t => t.Result.CashRegisterWaitingDuration).Min();
+            var d = (double)customerTasks.Select(t => t.Result.CashRegisterWaitingDuration).Max();
 
             Console.WriteLine("\n\nAverage shopping duration: {0}", Math.Round(a, 2));
             Console.WriteLine("Average waiting in cash register queue duration: {0}", Math.Round(b, 2));

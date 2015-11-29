@@ -14,14 +14,16 @@ namespace ShopModeling
         private SemaphoreSlim _basketSemaphore;
         private SemaphoreSlim _cartSemaphore;
         private SemaphoreSlim _cashRegisterSemaphore;
+        private ManualResetEvent _manualResetEvent;
 
-        public Customer(int id, ref SemaphoreSlim parkingSemaphore, ref SemaphoreSlim basketSemaphore, ref SemaphoreSlim cartSemaphore, ref SemaphoreSlim cashRegisterSemaphore)
+        public Customer(int id, SharedResources resources, ManualResetEvent mre)
         {
             Id = id;
-            _parkingSemaphore = parkingSemaphore;
-            _basketSemaphore = basketSemaphore;
-            _cartSemaphore = cartSemaphore;
-            _cashRegisterSemaphore = cashRegisterSemaphore;
+            _parkingSemaphore = resources.ParkingSemaphore;
+            _basketSemaphore = resources.BasketSemaphore;
+            _cartSemaphore = resources.CartSemaphore;
+            _cashRegisterSemaphore = resources.CashRegisterSemaphore;
+            _manualResetEvent = mre;
         }
 
         public int Id { get; private set; }
@@ -71,14 +73,15 @@ namespace ShopModeling
             DisplayProgressForAction("Cash register waiting..");
             cashRegisterStopWatch.Start();
 
-            _cashRegisterSemaphore.Wait();
+            //_cashRegisterSemaphore.Wait();
+            _manualResetEvent.WaitOne();
             
             cashRegisterStopWatch.Stop();
 
             DisplayProgressForAction("Paying..");
             Thread.Sleep(TimeSpan.FromSeconds(paymentTime));
 
-            _cashRegisterSemaphore.Release();
+            //_cashRegisterSemaphore.Release();
 
             if (lineItemsCount > 10)
             {
